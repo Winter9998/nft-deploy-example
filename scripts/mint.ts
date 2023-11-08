@@ -1,30 +1,30 @@
 import { ethers } from "hardhat";
 
+async function main() {
+  const contractAddress = process.env.CONTRACT_ADDRESS as string;
+  if (!contractAddress) {
+    throw new Error("CONTRACT_ADDRESS must be provided");
+  }
 
-export async function main() {
+  const TestoContract = await ethers.getContractFactory("Testo");
+  const testo = TestoContract.attach(contractAddress);
+  const [deployer] = await ethers.getSigners();
 
-  const TST = await ethers.getContractFactory("Testo")
-  
-  const contractAddress = process.env.CONTRACT_ADDRESS as string
-  
-  const testo =  TST.attach(contractAddress)
+  console.log("Minting from deployer address:", deployer.address);
 
-  const signers = await ethers.getSigners()
+  try {
+    const mintTx = await testo.safeMint(deployer.address);
+    const receipt = await mintTx.wait();
 
-  const deployer = signers[0] 
-
-  const mintTx = await testo.getFunction("safeMint")(deployer.address)
-  
-  const receipt = await mintTx.wait()
-
-  console.log(mintTx, receipt)
-
-
+    console.log("Transaction details:", mintTx);
+    console.log("Transaction receipt:", receipt);
+  } catch (error) {
+    console.error("Error during minting:", error);
+    process.exit(1);
+  }
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
-  console.error(error);
+  console.error("Unhandled error:", error);
   process.exitCode = 1;
 });
