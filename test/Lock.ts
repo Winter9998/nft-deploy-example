@@ -1,132 +1,54 @@
-import {
-  time,
-  loadFixture,
-} from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
-import { expect } from "chai";
-import hre from "hardhat";
-import { getAddress, parseGwei } from "viem";
+import { ethers } from 'hardhat';
+import { expect } from 'chai';
+import { Contract, Signer } from 'ethers';
 
-describe("Lock", function () {
-  // We define a fixture to reuse the same setup in every test.
-  // We use loadFixture to run this setup once, snapshot that state,
-  // and reset Hardhat Network to that snapshot in every test.
-  async function deployOneYearLockFixture() {
-    const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
+describe('Ethereum ERC-721 Test', () => {
+  let testNFT: Contract;
+  let deployer: Signer;
+  let user: Signer;
+  let deployerAddress: string;
+  let userAddress: string;
 
-    const lockedAmount = parseGwei("1");
-    const unlockTime = BigInt((await time.latest()) + ONE_YEAR_IN_SECS);
-
-    // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await hre.viem.getWalletClients();
-
-    const lock = await hre.viem.deployContract("Lock", [unlockTime], {
-      value: lockedAmount,
-    });
-
-    const publicClient = await hre.viem.getPublicClient();
-
-    return {
-      lock,
-      unlockTime,
-      lockedAmount,
-      owner,
-      otherAccount,
-      publicClient,
-    };
-  }
-
-  describe("Deployment", function () {
-    it("Should set the right unlockTime", async function () {
-      const { lock, unlockTime } = await loadFixture(deployOneYearLockFixture);
-
-      expect(await lock.read.unlockTime()).to.equal(unlockTime);
-    });
-
-    it("Should set the right owner", async function () {
-      const { lock, owner } = await loadFixture(deployOneYearLockFixture);
-
-      expect(await lock.read.owner()).to.equal(getAddress(owner.account.address));
-    });
-
-    it("Should receive and store the funds to lock", async function () {
-      const { lock, lockedAmount, publicClient } = await loadFixture(
-        deployOneYearLockFixture
-      );
-
-      expect(
-        await publicClient.getBalance({
-          address: lock.address,
-        })
-      ).to.equal(lockedAmount);
-    });
-
-    it("Should fail if the unlockTime is not in the future", async function () {
-      // We don't use the fixture here because we want a different deployment
-      const latestTime = BigInt(await time.latest());
-      await expect(
-        hre.viem.deployContract("Lock", [latestTime], {
-          value: 1n,
-        })
-      ).to.be.rejectedWith("Unlock time should be in the future");
-    });
+  beforeEach(async () => {
+    const NFTTest = await ethers.getContractFactory('Testo');
+    testNFT = await NFTTest.deploy(deployer, deployer, deployer);
+    await testNFT.deployed();
+    [deployer, user] = await ethers.getSigners();
+    deployerAddress = await deployer.getAddress();
+    userAddress = await user.getAddress();
   });
 
-  describe("Withdrawals", function () {
-    describe("Validations", function () {
-      it("Should revert with the right error if called too soon", async function () {
-        const { lock } = await loadFixture(deployOneYearLockFixture);
+  it('Should check if MINTER_ROLE is granted to deployer', async () => {
+    const MINTER_ROLE = await testNFT.getFunction("MINTER_ROLE")();
+    expect(await testNFT.hasRole(MINTER_ROLE, deployerAddress)).to.be.true;
+  });
 
-        await expect(lock.write.withdraw()).to.be.rejectedWith(
-          "You can't withdraw yet"
-        );
-      });
+  it('Should check if PAUSER_ROLE is granted to deployer', async () => {
+    const PAUSER_ROLE = await testNFT.getFunction("PAUSER_ROLE")();
+    expect(await testNFT.hasRole(PAUSER_ROLE, deployerAddress)).to.be.true;
+  });
 
-      it("Should revert with the right error if called from another account", async function () {
-        const { lock, unlockTime, otherAccount } = await loadFixture(
-          deployOneYearLockFixture
-        );
+  it('Should check if minting is paused', async () => {
+    expect(await testNFT.getFunction("paused")()).to.be.false;
+  });
 
-        // We can increase the time in Hardhat Network
-        await time.increaseTo(unlockTime);
+  it('Should mint 2 NFTs to the deployer', async () => {
+    const mintTx1 = await testNFT.connect(deployer).getFunction("mint")(deployerAddress, 1);
+    await mintTx1.wait();
 
-        // We retrieve the contract with a different account to send a transaction
-        const lockAsOtherAccount = await hre.viem.getContractAt(
-          "Lock",
-          lock.address,
-          { walletClient: otherAccount }
-        );
-        await expect(lockAsOtherAccount.write.withdraw()).to.be.rejectedWith(
-          "You aren't the owner"
-        );
-      });
+    const mintTx2 = await testNFT.connect(deployer).getFunction("mint")(deployerAddress, 2);
+    await mintTx2.wait();
 
-      it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
-        const { lock, unlockTime } = await loadFixture(
-          deployOneYearLockFixture
-        );
+    expect(await testNFT.getFunction("balanceOf")(deployerAddress)).to.equal(2);
+  });
 
-        // Transactions are sent using the first signer by default
-        await time.increaseTo(unlockTime);
+  it('Should check if deployer has 2 NFTs', async () => {
+    expect(await testNFT.getFunction("balanceOf")(deployerAddress)).to.equal(2);
+  });
 
-        await expect(lock.write.withdraw()).to.be.fulfilled;
-      });
-    });
-
-    describe("Events", function () {
-      it("Should emit an event on withdrawals", async function () {
-        const { lock, unlockTime, lockedAmount, publicClient } =
-          await loadFixture(deployOneYearLockFixture);
-
-        await time.increaseTo(unlockTime);
-
-        const hash = await lock.write.withdraw();
-        await publicClient.waitForTransactionReceipt({ hash });
-
-        // get the withdrawal events in the latest block
-        const withdrawalEvents = await lock.getEvents.Withdrawal()
-        expect(withdrawalEvents).to.have.lengthOf(1);
-        expect(withdrawalEvents[0].args.amount).to.equal(lockedAmount);
-      });
-    });
+  it('Should transfer one NFT from deployer to user', async () => {
+    await testNFT.connect(deployer).getFunction("transferFrom")(deployerAddress, userAddress, 1);
+    expect(await testNFT.getFunction("balanceOf")(deployerAddress)).to.equal(1);
+    expect(await testNFT.getFunction("balanceOf")(userAddress)).to.equal(1);
   });
 });

@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "hardhat-deploy"
 import "hardhat-deploy-ethers"
+import "mocha"
 import * as dotenv from 'dotenv';
 dotenv.config();
 
