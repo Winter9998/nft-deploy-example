@@ -1,4 +1,4 @@
-![NFT Image](https://cdn.pixabay.com/photo/2022/02/10/09/39/nft-7004985_960_720.jpg)
+![NFT Image](https://images.unsplash.com/photo-1649274496773-c40eacd66e2d?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)
 
 # NFT Deployment Example with Hardhat & TypeScript
 
