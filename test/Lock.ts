@@ -1,3 +1,7 @@
+// Deploy script using hardhat-test  
+// Detailed guide found using this link :
+// https://hardhat.org/hardhat-runner/docs/guides/test-contracts
+
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { Contract, Signer } from 'ethers';
@@ -9,7 +13,8 @@ describe('Ethereum ERC-721 Test', () => {
   let deployerAddress: string;
   let userAddress: string;
 
-  beforeEach(async () => {
+  beforeEach(async () => { 
+    // we start by get the Contract name and user the deployer's address
     const NFTTest = await ethers.getContractFactory('Testo');
     testNFT = await NFTTest.deploy(deployer, deployer, deployer);
     await testNFT.deployed();
