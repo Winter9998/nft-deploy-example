@@ -2,7 +2,8 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const contractAddress = process.env.CONTRACT_ADDRESS as string; // get contract address in .env
+  // get contract address in .env
+  const contractAddress = process.env.CONTRACT_ADDRESS as string; 
   if (!contractAddress) {
     throw new Error("CONTRACT_ADDRESS must be provided");
   }
@@ -14,7 +15,8 @@ async function main() {
 
   console.log("Minting from deployer address:", deployer.address);
 
-  try { // check w/ try and catch
+  try { 
+    // check w/ try and catch
     const mintTx = await testo.safeMint(deployer.address); // calls the function here
     const receipt = await mintTx.wait();
 
